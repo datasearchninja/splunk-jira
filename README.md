@@ -3,8 +3,8 @@ Add-on for JIRA
 
 This is an Add-on for JIRA.
 
-* Download from https://www.github.com/firebus/splunk-jira
-* Upgoat at http://apps.splunk.com/app/1438/
+* Download from https://github.com/datasearchninja/splunk-jira
+* Old version at at http://apps.splunk.com/app/1438/
 
 ## Commands
 
