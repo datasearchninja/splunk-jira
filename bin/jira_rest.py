@@ -74,57 +74,71 @@ def run_filters():
 def run_changelog(jql):
     target = '/rest/api/2/search'
 
-    query_args = {
-        "jql": jql,
-        "fields": "key,id,reporter,assignee,summary",
-        "maxResults": 1000,
-        "expand": "changelog",
-        "validateQuery": "false"
-    }
+    offset = 0
+    page_size = 1000
+    #Initially set total_records = page_size, this will be updated later to the actual value
+    total_records = page_size
 
-    query_str = urllib.urlencode(query_args)
+    while offset < total_records :
+        results = []
 
-    changelog = jira_service.request(target +'?'+ query_str)
-    results = []
+        query_args = {
+            "jql": jql,
+            "fields": "key,id,reporter,assignee,summary",
+            "maxResults": page_size,
+            "expand": "changelog",
+            "validateQuery": "false",
+            "startAt": offset
+        }
 
-    for issue in changelog['issues']:
-        for field in issue['changelog']['histories']:
-            for item in field['items']:
-                row = {}
+        query_str = urllib.urlencode(query_args)
 
-                row['created'] = field['created']
-                row['user'] = field['author']['name']
-                row['user_name'] = field['author']['displayName']
-                row['field'] = item['field']
-                row['from'] = item['fromString']
-                row['to'] = item['toString']
+        changelog = jira_service.request(target +'?'+ query_str)
 
-                if date_helper.date_values.match(row['created']):
-                    jdate = date_helper.date_values.match(row['created']).group(1)
-                    epoch = date_helper.make_epoch(jdate)
-                    row['_time'] = epoch
+        if offset == 0:
+            total_records = changelog['total']
 
-                row['_raw'] = str(row)
-                row['host'] = jira_service.host
-                row['source'] = 'jira_rest'
-                row['sourcetype'] = 'jira_changelog'
-                row['key'] = issue['key']
-                if issue['fields']['reporter'] == None:
-                    row['reporter'] = None
-                    row['reporter_name'] = None
-                else:
-                    row['reporter'] = issue['fields']['reporter']['name']
-                    row['reporter_name'] = issue['fields']['reporter']['displayName']
-                if issue['fields']['assignee'] == None:
-                    row['assignee'] = None
-                    row['assignee_name'] = None
-                else:
-                    row['assignee'] = issue['fields']['assignee']['name']
-                    row['assignee_name'] = issue['fields']['assignee']['displayName']
-                row['summary'] = issue['fields']['summary']
-                results.append(row)
+        offset = offset+page_size
+        logger.info("Read " + str(offset) + " of " + str(total_records) + " records.")
     
-    splunk.Intersplunk.outputStreamResults(results)
+        for issue in changelog['issues']:
+            for field in issue['changelog']['histories']:
+                for item in field['items']:
+                    row = {}
+
+                    row['created'] = field['created']
+                    row['user'] = field['author']['name']
+                    row['user_name'] = field['author']['displayName']
+                    row['field'] = item['field']
+                    row['from'] = item['fromString']
+                    row['to'] = item['toString']
+
+                    if date_helper.date_values.match(row['created']):
+                        jdate = date_helper.date_values.match(row['created']).group(1)
+                        epoch = date_helper.make_epoch(jdate)
+                        row['_time'] = epoch
+
+                    row['_raw'] = str(row)
+                    row['host'] = jira_service.host
+                    row['source'] = 'jira_rest'
+                    row['sourcetype'] = 'jira_changelog'
+                    row['key'] = issue['key']
+                    if issue['fields']['reporter'] == None:
+                        row['reporter'] = None
+                        row['reporter_name'] = None
+                    else:
+                        row['reporter'] = issue['fields']['reporter']['name']
+                        row['reporter_name'] = issue['fields']['reporter']['displayName']
+                    if issue['fields']['assignee'] == None:
+                        row['assignee'] = None
+                        row['assignee_name'] = None
+                    else:
+                        row['assignee'] = issue['fields']['assignee']['name']
+                        row['assignee_name'] = issue['fields']['assignee']['displayName']
+                    row['summary'] = issue['fields']['summary']
+                    results.append(row)
+
+        splunk.Intersplunk.outputStreamResults(results)
 
 def sprints_by_rapidboard_id(rapidboard_id, rapidboard_name):
     results = []
